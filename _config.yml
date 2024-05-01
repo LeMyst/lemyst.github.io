@@ -21,6 +21,7 @@
 title: LeMyst
 description: >-
   A website for me to store discoveries, small scripts, or useful commands and avoid scattering them everywhere.
+  If you find and error or want to add something, you can always create a Merge Request of my GitHub repo.
 baseurl: "" # the subpath of your site, e.g. /blog
 url: "https://lemyst.github.io" # the base hostname & protocol for your site, e.g. http://example.com
 github_username:  LeMyst
