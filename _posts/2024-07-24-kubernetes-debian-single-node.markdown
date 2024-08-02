@@ -2,7 +2,7 @@
 title: "Kubernetes sur un unique noeud Debian"
 author: myst
 date: 2024-07-24 22:15:00 +0200
-last_modified_at: 2024-07-27 19:25:00 +0200
+last_modified_at: 2024-08-02 12:00:00 +0200
 categories: [ kubernetes ]
 tags: [ kubernetes, debian ]
 ---
@@ -81,7 +81,7 @@ Remplacez la valeur de `SystemdCgroup` de `false` à `true` dans la
 section `plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options` :
 
 ```terminal
-sudo cat /etc/containerd/config.toml | sed 's/SystemdCgroup = false/SystemdCgroup = true/' | sudo tee /etc/containerd/config.toml
+cat /etc/containerd/config.toml | sed 's/SystemdCgroup = false/SystemdCgroup = true/' | sudo tee /etc/containerd/config.toml
 ```
 
 Activez et redémarrez `containerd` :
@@ -127,6 +127,12 @@ sudo apt-mark hold kubeadm kubelet kubectl
 ```
 
 ## Initialisation du nœud maître
+
+Récupérez les images nécessaires pour Kubernetes :
+
+```terminal
+sudo kubeadm config images pull
+```
 
 Initialisez le nœud maître en utilisant son IP :
 
@@ -208,7 +214,7 @@ Installation de `cilium` sur le cluster :
 cilium install
 ```
 
-Validation de l'installation :
+Validation de l'installation, cela peut prendre quelques minutes avant que tout soit prêt :
 
 ```terminal
 cilium status --wait
@@ -324,6 +330,58 @@ sudo showmount -e <IP SERVEUR NFS>
 
 ```terminal
 kubectl patch storageclass nfs-client -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+```
+
+## Installation de kubelet-csr-approver
+
+Dans le but de simplifier la gestion des certificats, mais aussi pour le fonctionnement correct du metrics-server, il
+est intéressant d'installer kubelet-csr-approver.
+
+Pour ce faire, vous pouvez utiliser le helm chart suivant :
+
+```terminal
+helm repo add kubelet-csr-approver https://postfinance.github.io/kubelet-csr-approver
+helm install kubelet-csr-approver kubelet-csr-approver/kubelet-csr-approver -n kube-system \
+  --set providerIpPrefixes='10.6.9.0/24' \
+  --set bypassDnsResolution='true'
+```
+
+Le paramètre `providerIpPrefixes` permet de spécifier les plages d'adresses IP autorisées à approuver les certificats.
+Le second paramètre `bypassDnsResolution`, défini à `true`, permet de ne pas résoudre les noms de domaine.
+
+Vous avez la possibilité de spécifier d'autres paramètres, vous pouvez consulter la documentation du projet à l'adresse
+suivante : [https://github.com/postfinance/kubelet-csr-approver?tab=readme-ov-file#parameters](https://github.com/postfinance/kubelet-csr-approver?tab=readme-ov-file#parameters)
+
+## Activation du serverTLSBootstrap
+
+Le serverTLSBootstrap est une fonctionnalité permettant aux nœuds de générer leurs propres certificats pour communiquer
+avec le cluster.
+
+Pour activer cette fonctionnalité, vous devez ajouter les paramètres suivants dans le fichier de configuration de
+kubelet sur chaque nœud :
+
+```terminal
+echo "serverTLSBootstrap: true" | sudo tee -a /var/lib/kubelet/config.yaml && sudo systemctl restart kubelet
+```
+
+Cela va générer un CSR (Certificate Signing Request) pour chaque nœud, que kubelet-csr-provider va approuver
+automatiquement.
+
+Vous pouvez voir les certificats approuvés en exécutant la commande suivante :
+
+```terminal
+kubectl get csr
+```
+
+## Installation de metrics-server
+
+Le metrics-server est un composant qui collecte les métriques de l'ensemble du cluster Kubernetes. Il est nécessaire
+pour que les HPA (Horizontal Pod Autoscaler) ou la commande `kubectl top` fonctionnent.
+
+Pour l'installer, vous pouvez utiliser le manifeste suivant :
+
+```terminal
+kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
 ```
 
 ## Ajout de nœuds supplémentaires
