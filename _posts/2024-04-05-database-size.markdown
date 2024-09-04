@@ -2,8 +2,8 @@
 layout: post
 title:  "MySQL Database size"
 date:   2024-04-05 12:42:34 +0200
-categories: [bdd, mysql]
-tags: [bdd, mysql, size]
+categories: [mysql]
+tags: [mysql, database, size, query]
 ---
 
 Cette requête permet de lister les bases de données MySQL et leur taille en octets, mégaoctets et gigaoctets.

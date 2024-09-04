@@ -4,7 +4,7 @@ author: myst
 date: 2024-07-24 22:15:00 +0200
 last_modified_at: 2024-08-02 12:00:00 +0200
 categories: [ kubernetes ]
-tags: [ kubernetes, debian ]
+tags: [ kubernetes, debian, single-node, cluster, nfs, cilium, calico, metrics-server, kubelet-csr-approver ]
 ---
 
 ## Introduction
