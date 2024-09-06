@@ -7,3 +7,5 @@ gem 'sass-embedded', '1.78.0'
 
 gem 'wdm', '>= 0.1.0', platforms: [:x64_mingw]
 gem "tzinfo-data", platforms: [:mingw, :mswin, :x64_mingw, :jruby]
+
+gem 'jekyll-sitemap'
