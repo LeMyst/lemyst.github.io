@@ -2,7 +2,7 @@
 title: "Kubernetes sur un unique noeud Debian"
 author: myst
 date: 2024-07-24 22:15:00 +0200
-last_modified_at: 2024-08-02 12:00:00 +0200
+last_modified_at: 2024-09-18 21:30:00 +0200
 categories: [ kubernetes ]
 tags: [ kubernetes, debian, single-node, cluster, nfs, cilium, calico, metrics-server, kubelet-csr-approver ]
 ---
@@ -18,7 +18,7 @@ J'essaierai de le garder à jour avec les dernières versions de Kubernetes et D
 
 Voici les prérequis attendus pour ce guide :
 
-* Un serveur Debian 12 (Debian 12.6 "Bookworm" au moment de l'écriture)
+* Un serveur Debian "Bookworm" 12 (12.7 au moment de l'écriture)
 * Une IP statique pour le nœud maître
 * Un utilisateur avec des privilèges sudo
 * Un accès à Internet
@@ -28,12 +28,23 @@ Voici les prérequis attendus pour ce guide :
 
 Il est nécessaire d'effectuer certaines actions avant de pouvoir commencer à installer Kubernetes.
 
-Premièrement, assurez-vous que votre système est à jour :
+Premièrement, assurez-vous que votre système est à jour et que les paquets nécessaires sont installés :
+
+Vous n'avez besoin du paquet `jq` que pendant ce guide, vous pouvez le supprimer après l'installation de Kubernetes et
+la configuration du nœud unique.
 
 ```terminal
 sudo apt update
 sudo apt upgrade
 sudo apt install -y curl jq gnupg2
+```
+
+(Optionnel) Pour certains éléments optionnels de ce guide, vous aurez besoin de `helm` :
+
+```terminal
+curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+chmod 700 get_helm.sh
+./get_helm.sh
 ```
 
 Désactivez le swap :
@@ -95,21 +106,21 @@ sudo systemctl restart containerd
 
 Il est temps d'installer Kubernetes.
 
-Ajoutez la clé GPG de Kubernetes, vous pouvez remplacer `v1.30` par la version de Kubernetes que vous souhaitez
+Ajoutez la clé GPG de Kubernetes, vous pouvez remplacer `v1.31` par la version de Kubernetes que vous souhaitez
 installer :
 
 ```terminal
-curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.30/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
 ```
 
 Dans les versions avant Debian 12 et Ubuntu 22.04, vous devez créer le répertoire `/etc/apt/keyrings` avant d'exécuter
 la commande `curl` précédente.
 
-Ajoutez le dépôt Kubernetes, vous pouvez remplacer `v1.30` par la version de Kubernetes que vous souhaitez installer :
+Ajoutez le dépôt Kubernetes, vous pouvez remplacer `v1.31` par la version de Kubernetes que vous souhaitez installer :
 
 ```terminal
 cat <<EOF | sudo tee /etc/apt/sources.list.d/kubernetes.list
-deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.30/deb/ /
+deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.31/deb/ /
 EOF
 ```
 
@@ -214,13 +225,23 @@ Installation de `cilium` sur le cluster :
 cilium install
 ```
 
+Dans la dernière version du cilium-cli (v0.16.17), il semble y avoir un problème avec la commande précédente.
+Voir le problème [cilium-cli issue #2795](https://github.com/cilium/cilium-cli/issues/2795).
+
+Vous pouvez utiliser la commande suivante pour installer `cilium` :
+
+```terminal
+cilium install --version v1.16.1
+```
+
 Validation de l'installation, cela peut prendre quelques minutes avant que tout soit prêt :
 
 ```terminal
 cilium status --wait
 ```
 
-Test de connectivité :
+Test de connectivité, à faire si vous avez configuré le cluster en tant que nœud unique ou si vous avez ajouté des
+nœuds :
 
 ```terminal
 cilium connectivity test
@@ -228,10 +249,12 @@ cilium connectivity test
 
 ### Utilisation de calico
 
-Il suffit d'appliquer le manifeste suivant, qui installe la version 3.28.0 de calico :
+Vous pouvez également utiliser calico comme réseau pour votre cluster Kubernetes à la place de cilium.
+
+Il suffit d'appliquer le manifeste suivant, qui installe la version 3.28.2 de calico :
 
 ```terminal
-kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.28.0/manifests/calico.yaml
+kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.28.2/manifests/calico.yaml
 ```
 
 Vous pouvez trouver la dernière version disponible, vous pouvez consulter la page
