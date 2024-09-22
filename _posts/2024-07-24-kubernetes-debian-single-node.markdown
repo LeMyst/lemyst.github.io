@@ -2,7 +2,7 @@
 title: "Kubernetes sur un unique noeud Debian"
 author: myst
 date: 2024-07-24 22:15:00 +0200
-last_modified_at: 2024-09-18 21:30:00 +0200
+last_modified_at: 2024-09-22 22:55:00 +0200
 categories: [ kubernetes ]
 tags: [ kubernetes, debian, single-node, cluster, nfs, cilium, calico, metrics-server, kubelet-csr-approver ]
 ---
@@ -35,7 +35,6 @@ la configuration du nœud unique.
 
 ```terminal
 sudo apt update
-sudo apt upgrade
 sudo apt install -y curl jq gnupg2
 ```
 
@@ -47,28 +46,18 @@ chmod 700 get_helm.sh
 ./get_helm.sh
 ```
 
-Désactivez le swap :
+Désactivation du swap, même si Kubernetes peut fonctionner avec le swap dans ses dernières versions, il est recommandé de le désactiver :
 
 ```terminal
 sudo swapoff -a
-sudo sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab
+sudo sed -i '/ swap / s/^[^#]/#&/' /etc/fstab
 ```
 
-Activation du bridging d'interfaces :
+Activation du routage des paquets IPv4 :
 
 ```terminal
-cat <<EOF | sudo tee /etc/modules-load.d/containerd.conf
-overlay
-br_netfilter
-EOF
-
-sudo modprobe overlay
-sudo modprobe br_netfilter
-
 cat <<EOF | sudo tee /etc/sysctl.d/99-kubernetes-k8s.conf
-net.bridge.bridge-nf-call-iptables = 1
 net.ipv4.ip_forward = 1
-net.bridge.bridge-nf-call-ip6tables = 1
 EOF
 
 sudo sysctl --system
@@ -88,14 +77,14 @@ sudo mkdir -p /etc/containerd
 containerd config default | sudo tee /etc/containerd/config.toml
 ```
 
-Remplacez la valeur de `SystemdCgroup` de `false` à `true` dans la
+Remplacement de la valeur de `SystemdCgroup` de `false` à `true` dans la
 section `plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options` :
 
 ```terminal
 cat /etc/containerd/config.toml | sed 's/SystemdCgroup = false/SystemdCgroup = true/' | sudo tee /etc/containerd/config.toml
 ```
 
-Activez et redémarrez `containerd` :
+Activation et redémarrage de `containerd` :
 
 ```terminal
 sudo systemctl enable containerd
@@ -219,16 +208,13 @@ Vérification de l'installation du client `cilium` :
 cilium version --client
 ```
 
-Installation de `cilium` sur le cluster :
+Installation de `cilium` sur le cluster avec la dernière version disponible :
 
 ```terminal
 cilium install
 ```
 
-Dans la dernière version du cilium-cli (v0.16.17), il semble y avoir un problème avec la commande précédente.
-Voir le problème [cilium-cli issue #2795](https://github.com/cilium/cilium-cli/issues/2795).
-
-Vous pouvez utiliser la commande suivante pour installer `cilium` :
+Il est possible de spécifier une version spécifique de `cilium` lors de l'installation :
 
 ```terminal
 cilium install --version v1.16.1
@@ -313,6 +299,8 @@ Après quelques instants, vous devriez voir que vos Pods sont en cours d'exécut
 ```terminal
 kubectl get pods --all-namespaces
 ```
+
+Si vous avez installé `cilium`, vous pouvez maintenant vérifier le bon fonctionnement de la connectivité.
 
 ## Ajout d'un StorageClass NFS
 
