@@ -4,6 +4,7 @@ title:  "MySQL Database size"
 date:   2024-04-05 12:42:34 +0200
 categories: [mysql]
 tags: [mysql, database, size, query]
+lang: fr
 ---
 
 Cette requête permet de lister les bases de données MySQL et leur taille en octets, mégaoctets et gigaoctets.
