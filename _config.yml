@@ -203,14 +203,11 @@ compress_html:
     envs: [ development ]
 
 exclude:
-  - "*.gem"
-  - "*.gemspec"
-  - docs
-  - tools
-  - README.md
-  - LICENSE
-  - "*.config.js"
-  - package*.json
+  - .jekyll-cache/
+  - Gemfile
+  - Gemfile.lock
+  - .github
+  - .gitignore
   - .idea
 
 jekyll-archives:
