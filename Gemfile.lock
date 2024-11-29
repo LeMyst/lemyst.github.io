@@ -13,10 +13,10 @@ GEM
     ffi (1.17.0-x64-mingw-ucrt)
     ffi (1.17.0-x86_64-linux-gnu)
     forwardable-extended (2.6.0)
-    google-protobuf (4.28.3-x64-mingw-ucrt)
+    google-protobuf (4.29.0-x64-mingw-ucrt)
       bigdecimal
       rake (>= 13)
-    google-protobuf (4.28.3-x86_64-linux)
+    google-protobuf (4.29.0-x86_64-linux)
       bigdecimal
       rake (>= 13)
     http_parser.rb (0.8.0)
@@ -51,7 +51,7 @@ GEM
       jekyll (>= 3.8, < 5.0)
     jekyll-sitemap (1.4.0)
       jekyll (>= 3.7, < 5.0)
-    jekyll-theme-chirpy (7.1.1)
+    jekyll-theme-chirpy (7.2.0)
       jekyll (~> 4.3)
       jekyll-archives (~> 2.2)
       jekyll-include-cache (~> 0.2)
@@ -61,8 +61,8 @@ GEM
       jekyll-sitemap (~> 1.4)
     jekyll-watch (2.2.1)
       listen (~> 3.0)
-    kramdown (2.4.0)
-      rexml
+    kramdown (2.5.1)
+      rexml (>= 3.3.9)
     kramdown-parser-gfm (1.1.0)
       kramdown (~> 2.0)
     liquid (4.0.4)
@@ -78,7 +78,7 @@ GEM
     rb-inotify (0.11.1)
       ffi (~> 1.0)
     rexml (3.3.9)
-    rouge (4.4.0)
+    rouge (4.5.1)
     safe_yaml (1.0.5)
     sass-embedded (1.81.0-x64-mingw-ucrt)
       google-protobuf (~> 4.28)
@@ -100,7 +100,7 @@ PLATFORMS
 
 DEPENDENCIES
   jekyll-sitemap
-  jekyll-theme-chirpy (~> 7.1)
+  jekyll-theme-chirpy (~> 7.2)
   sass-embedded (= 1.81.0)
   tzinfo-data
   wdm (>= 0.1.0)
