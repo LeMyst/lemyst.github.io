@@ -13,10 +13,10 @@ GEM
     ffi (1.17.0-x64-mingw-ucrt)
     ffi (1.17.0-x86_64-linux-gnu)
     forwardable-extended (2.6.0)
-    google-protobuf (4.29.0-x64-mingw-ucrt)
+    google-protobuf (4.29.1-x64-mingw-ucrt)
       bigdecimal
       rake (>= 13)
-    google-protobuf (4.29.0-x86_64-linux)
+    google-protobuf (4.29.1-x86_64-linux)
       bigdecimal
       rake (>= 13)
     http_parser.rb (0.8.0)
@@ -38,7 +38,7 @@ GEM
       safe_yaml (~> 1.0)
       terminal-table (>= 1.8, < 4.0)
       webrick (~> 1.7)
-    jekyll-archives (2.2.1)
+    jekyll-archives (2.3.0)
       jekyll (>= 3.6, < 5.0)
     jekyll-include-cache (0.2.1)
       jekyll (>= 3.7, < 5.0)
@@ -51,7 +51,7 @@ GEM
       jekyll (>= 3.8, < 5.0)
     jekyll-sitemap (1.4.0)
       jekyll (>= 3.7, < 5.0)
-    jekyll-theme-chirpy (7.2.0)
+    jekyll-theme-chirpy (7.2.1)
       jekyll (~> 4.3)
       jekyll-archives (~> 2.2)
       jekyll-include-cache (~> 0.2)
@@ -92,7 +92,7 @@ GEM
       tzinfo (>= 1.0.0)
     unicode-display_width (2.6.0)
     wdm (0.2.0)
-    webrick (1.9.0)
+    webrick (1.9.1)
 
 PLATFORMS
   x64-mingw-ucrt
