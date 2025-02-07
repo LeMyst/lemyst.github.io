@@ -79,7 +79,8 @@ containerd config default | sudo tee /etc/containerd/config.toml
 ```
 
 Remplacement de la valeur de `SystemdCgroup` de `false` à `true` dans la
-section `plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options` :
+section `plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options`.  
+Cela permet à `containerd` de fonctionner correctement avec `systemd` :
 
 ```terminal
 cat /etc/containerd/config.toml | sed 's/SystemdCgroup = false/SystemdCgroup = true/' | sudo tee /etc/containerd/config.toml
@@ -96,21 +97,21 @@ sudo systemctl restart containerd
 
 Il est temps d'installer Kubernetes.
 
-Ajoutez la clé GPG de Kubernetes, vous pouvez remplacer `v1.31` par la version de Kubernetes que vous souhaitez
+Ajoutez la clé GPG de Kubernetes, vous pouvez remplacer `v1.32` par la version de Kubernetes que vous souhaitez
 installer :
 
 ```terminal
-curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.32/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
 ```
 
 Dans les versions avant Debian 12 et Ubuntu 22.04, vous devez créer le répertoire `/etc/apt/keyrings` avant d'exécuter
 la commande `curl` précédente.
 
-Ajoutez le dépôt Kubernetes, vous pouvez remplacer `v1.31` par la version de Kubernetes que vous souhaitez installer :
+Ajoutez le dépôt Kubernetes, vous pouvez remplacer `v1.32` par la version de Kubernetes que vous souhaitez installer :
 
 ```terminal
 cat <<EOF | sudo tee /etc/apt/sources.list.d/kubernetes.list
-deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.31/deb/ /
+deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.32/deb/ /
 EOF
 ```
 
@@ -141,23 +142,9 @@ Initialisez le nœud maître en utilisant son IP :
 sudo kubeadm init --control-plane-endpoint=$(hostname -I | awk '{print $1}')
 ```
 
-Cela va prendre un certain temps. Une fois terminé, vous verrez un message similaire à celui-ci :
+Cela va prendre un certain temps. Une fois terminé, vous verrez le message suivant : `Your Kubernetes control-plane has initialized successfully!`
 
-```terminal
-Your Kubernetes control-plane has initialized successfully!
-```
-
-S'il ne s'est pas initialisé correctement, vous pouvez obtenir des informations supplémentaires en exécutant :
-
-```terminal
-sudo journalctl -xeu kubelet
-```
-
-Puis utilisez la commande suivante pour réinitialiser le nœud avant de relancer la commande `kubeadm init` précédente :
-
-```terminal
-sudo kubeadm reset
-```
+S'il ne s'est pas initialisé correctement, consultez la section [Debugging](#Debugging) à la fin de ce guide.
 
 Pour configurer `kubectl` pour votre utilisateur, exécutez les commandes suivantes :
 
@@ -184,7 +171,7 @@ echo "source <(kubectl completion bash)" | tee -a ~/.bashrc
 ## Installation du réseau
 
 Pour que les Pods puissent communiquer entre eux, vous devez installer un réseau.
-Plusieurs solutions sont disponibles, mais les plus courantes sont `cilium`, `calico`, `flannel` et `weave`.
+Plusieurs solutions sont disponibles, mais les plus courantes sont `cilium`, `calico` et `flannel`.
 Cette action ne doit être effectuée qu'une seule fois, après l'initialisation du nœud maître.
 
 ### Utilisation de cilium
@@ -227,7 +214,7 @@ Validation de l'installation, cela peut prendre quelques minutes avant que tout 
 cilium status --wait
 ```
 
-Test de connectivité, à faire si vous avez configuré le cluster en tant que nœud unique ou si vous avez ajouté des
+Test de connectivité, à faire après que vous avez configuré le cluster en tant que nœud unique ou si vous avez ajouté des
 nœuds :
 
 ```terminal
@@ -238,10 +225,10 @@ cilium connectivity test
 
 Vous pouvez également utiliser calico comme réseau pour votre cluster Kubernetes à la place de cilium.
 
-Il suffit d'appliquer le manifeste suivant, qui installe la version 3.28.2 de calico :
+Il suffit d'appliquer le manifeste suivant, qui installe la version 3.29.2 de calico :
 
 ```terminal
-kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.28.2/manifests/calico.yaml
+kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.29.2/manifests/calico.yaml
 ```
 
 Vous pouvez trouver la dernière version disponible, vous pouvez consulter la page
@@ -255,13 +242,7 @@ ajustements à faire pour que Kubernetes fonctionne correctement sur un seul nœ
 Sans les autres nœuds, il est impossible d'exécuter quoi que ce soit dans le cluster car Kubernetes applique un `taint`
 sur le nœud maître pour qu'aucun Pod ne puisse y être planifié. Pour contourner cela, vous pouvez supprimer le `taint` :
 
-Obtenez le nom du nœud :
-
-```terminal
-kubectl get nodes
-```
-
-Affichez les `taints` :
+Affichez les `taints` de votre unique nœud :
 
 ```terminal
 kubectl get nodes -o json | jq '.items[].spec.taints'
@@ -278,10 +259,9 @@ Cela devrait afficher quelque chose comme :
 ]
 ```
 
-(Si, pour une raison quelconque, vous avez installé une ancienne version, le taint peut se présenter sous la
-forme `node-role.kubernetes.io/master`)
+(Si vous avez installé une ancienne version, le taint peut se présenter sous la forme `node-role.kubernetes.io/master`)
 
-On combine ces informations pour supprimer le `taint` du nœud maître depuis le nœud maître :
+On supprime le `taint` :
 
 ```terminal
 kubectl taint nodes $HOSTNAME node-role.kubernetes.io/control-plane:NoSchedule-
@@ -440,4 +420,18 @@ Puis modifiez les droits :
 
 ```terminal
 sudo chown $(id -u):$(id -g) $HOME/.kube/config
+```
+
+# Debugging
+
+Si vous rencontrez des problèmes lors de l'installation ou de l'utilisation de Kubernetes, vous pouvez consulter les journaux de `kubelet` pour obtenir des informations supplémentaires :
+
+```terminal
+sudo journalctl -xeu kubelet
+```
+
+Vous pouvez aussi réinitialiser le nœud en exécutant la commande suivante, ce qui aura pour effet de remettre le nœud dans son état initial :
+
+```terminal
+sudo kubeadm reset
 ```
