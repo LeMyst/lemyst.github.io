@@ -2,7 +2,7 @@
 title: "Kubernetes sur un unique noeud Debian"
 author: myst
 date: 2024-07-24 22:15:00 +0200
-last_modified_at: 2024-09-22 22:55:00 +0200
+last_modified_at: 2025-02-07 08:00:00 +0100
 categories: [ kubernetes ]
 tags: [ kubernetes, debian, single-node, cluster, nfs, cilium, calico, metrics-server, kubelet-csr-approver ]
 lang: fr
