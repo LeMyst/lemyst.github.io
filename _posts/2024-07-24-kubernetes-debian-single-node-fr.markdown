@@ -19,7 +19,7 @@ J'essaierai de le garder à jour avec les dernières versions de Kubernetes et D
 
 Voici les prérequis attendus pour ce guide :
 
-* Un serveur Debian "Bookworm" 12 (12.7 au moment de l'écriture)
+* Un serveur Debian "Bookworm" 12 (12.9 au moment de l'écriture)
 * Une IP statique pour le nœud maître
 * Un utilisateur avec des privilèges sudo
 * Un accès à Internet
