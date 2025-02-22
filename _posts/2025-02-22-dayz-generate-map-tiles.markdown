@@ -1,7 +1,7 @@
 ---
 title: "Generating DayZ Map Tiles"
 author: myst
-date: 2024-09-06 18:00:00 +0200
+date: 2025-02-22 12:00:00 +0100
 last_modified_at: 2025-02-22 12:00:00 +0100
 categories: [ dayz ]
 tags: [ dayz, map, tiles, imagemagick ]
