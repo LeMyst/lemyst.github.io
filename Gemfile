@@ -1,6 +1,6 @@
 source "https://rubygems.org"
 
-gem "jekyll-theme-chirpy", "~> 7.2"
+gem "jekyll-theme-chirpy", "~> 7.3"
 
 # Avoid error sass error messages, wait for Chirpy update after v7.0.1
 gem 'sass-embedded', '1.89.0'
