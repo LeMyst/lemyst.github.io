@@ -2,7 +2,7 @@
 title: "Kubernetes sur un unique noeud Debian"
 author: myst
 date: 2024-07-24 22:15:00 +0200
-last_modified_at: 2025-02-07 08:00:00 +0100
+last_modified_at: 2025-06-25 17:30:00 +0200
 categories: [ kubernetes ]
 tags: [ kubernetes, debian, single-node, cluster, nfs, cilium, calico, metrics-server, kubelet-csr-approver ]
 lang: fr
@@ -19,7 +19,7 @@ J'essaierai de le garder à jour avec les dernières versions de Kubernetes et D
 
 Voici les prérequis attendus pour ce guide :
 
-* Un serveur Debian "Bookworm" 12 (12.9 au moment de l'écriture)
+* Un serveur Debian "Bookworm" 12 (12.11 au moment de l'écriture)
 * Une IP statique pour le nœud maître
 * Un utilisateur avec des privilèges sudo
 * Un accès à Internet
@@ -97,21 +97,21 @@ sudo systemctl restart containerd
 
 Il est temps d'installer Kubernetes.
 
-Ajoutez la clé GPG de Kubernetes, vous pouvez remplacer `v1.32` par la version de Kubernetes que vous souhaitez
+Ajoutez la clé GPG de Kubernetes, vous pouvez remplacer `v1.33` par la version de Kubernetes que vous souhaitez
 installer :
 
 ```terminal
-curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.32/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.33/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
 ```
 
 Dans les versions avant Debian 12 et Ubuntu 22.04, vous devez créer le répertoire `/etc/apt/keyrings` avant d'exécuter
 la commande `curl` précédente.
 
-Ajoutez le dépôt Kubernetes, vous pouvez remplacer `v1.32` par la version de Kubernetes que vous souhaitez installer :
+Ajoutez le dépôt Kubernetes, vous pouvez remplacer `v1.33` par la version de Kubernetes que vous souhaitez installer :
 
 ```terminal
 cat <<EOF | sudo tee /etc/apt/sources.list.d/kubernetes.list
-deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.32/deb/ /
+deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.33/deb/ /
 EOF
 ```
 
