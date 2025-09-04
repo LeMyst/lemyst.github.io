@@ -19,7 +19,7 @@ J'essaierai de le garder à jour avec les dernières versions de Kubernetes et D
 
 Voici les prérequis attendus pour ce guide :
 
-* Un serveur Debian "Bookworm" 12 (12.11 au moment de l'écriture)
+* Un serveur Debian "Trixie" 13 (13.0.0 au moment de l'écriture)
 * Une IP statique pour le nœud maître
 * Un utilisateur avec des privilèges sudo
 * Un accès à Internet
@@ -97,21 +97,25 @@ sudo systemctl restart containerd
 
 Il est temps d'installer Kubernetes.
 
-Ajoutez la clé GPG de Kubernetes, vous pouvez remplacer `v1.33` par la version de Kubernetes que vous souhaitez
+Ajoutez la clé GPG de Kubernetes, vous pouvez remplacer `v1.34` par la version de Kubernetes que vous souhaitez
 installer :
 
 ```terminal
-curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.33/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.34/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
 ```
 
 Dans les versions avant Debian 12 et Ubuntu 22.04, vous devez créer le répertoire `/etc/apt/keyrings` avant d'exécuter
 la commande `curl` précédente.
 
-Ajoutez le dépôt Kubernetes, vous pouvez remplacer `v1.33` par la version de Kubernetes que vous souhaitez installer :
+Ajoutez le dépôt Kubernetes, vous pouvez remplacer `v1.34` par la version de Kubernetes que vous souhaitez installer :
 
 ```terminal
-cat <<EOF | sudo tee /etc/apt/sources.list.d/kubernetes.list
-deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.33/deb/ /
+cat <<EOF | sudo tee /etc/apt/sources.list.d/kubernetes.sources
+Types: deb
+URIs: https://pkgs.k8s.io/core:/stable:/v1.34/deb/
+Suites: /
+Components:
+Signed-By: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
 EOF
 ```
 
@@ -142,7 +146,8 @@ Initialisez le nœud maître en utilisant son IP :
 sudo kubeadm init --control-plane-endpoint=$(hostname -I | awk '{print $1}')
 ```
 
-Cela va prendre un certain temps. Une fois terminé, vous verrez le message suivant : `Your Kubernetes control-plane has initialized successfully!`
+Cela va prendre un certain temps. Une fois terminé, vous verrez le message suivant :
+`Your Kubernetes control-plane has initialized successfully!`
 
 S'il ne s'est pas initialisé correctement, consultez la section [Debugging](#Debugging) à la fin de ce guide.
 
@@ -184,10 +189,11 @@ Téléchargement de la dernière version de `cilium` :
 CILIUM_CLI_VERSION=$(curl -s https://raw.githubusercontent.com/cilium/cilium-cli/main/stable.txt)
 CLI_ARCH=amd64
 if [ "$(uname -m)" = "aarch64" ]; then CLI_ARCH=arm64; fi
-curl -L --fail --remote-name-all https://github.com/cilium/cilium-cli/releases/download/${CILIUM_CLI_VERSION}/cilium-linux-${CLI_ARCH}.tar.gz{,.sha256sum}
-sha256sum --check cilium-linux-${CLI_ARCH}.tar.gz.sha256sum
-sudo tar xzvfC cilium-linux-${CLI_ARCH}.tar.gz /usr/local/bin
-rm cilium-linux-${CLI_ARCH}.tar.gz{,.sha256sum}
+(cd /tmp && curl -L --fail --remote-name-all https://github.com/cilium/cilium-cli/releases/download/${CILIUM_CLI_VERSION}/cilium-linux-${CLI_ARCH}.tar.gz{,.sha256sum}) && \
+(cd /tmp && sha256sum --check cilium-linux-${CLI_ARCH}.tar.gz.sha256sum) && \
+sudo tar -C /usr/local/bin -xzf /tmp/cilium-linux-${CLI_ARCH}.tar.gz && \
+rm /tmp/cilium-linux-${CLI_ARCH}.tar.gz{,.sha256sum} && \
+cilium version --client
 ```
 
 Vérification de l'installation du client `cilium` :
@@ -206,6 +212,13 @@ Il est possible de spécifier une version spécifique de `cilium` lors de l'inst
 
 ```terminal
 cilium install --version v1.16.1
+```
+
+Containerd et Coredns s'attendent à ce que le CNI soit installé dans `/usr/lib/cni`, nous devons donc créer un lien
+symbolique de `/opt/cni/bin` vers `/usr/lib/cni` :
+
+```terminal
+ln -s /opt/cni/bin /usr/lib/cni
 ```
 
 Validation de l'installation, cela peut prendre quelques minutes avant que tout soit prêt :
@@ -356,7 +369,7 @@ kubelet sur chaque nœud :
 echo "serverTLSBootstrap: true" | sudo tee -a /var/lib/kubelet/config.yaml && sudo systemctl restart kubelet
 ```
 
-Cela va générer un CSR (Certificate Signing Request) pour chaque nœud, que kubelet-csr-provider va approuver
+Cela va générer un CSR (Certificate Signing Request) pour chaque nœud, que `kubelet-csr-approver` va approuver
 automatiquement.
 
 Vous pouvez voir les certificats approuvés en exécutant la commande suivante :
@@ -374,6 +387,25 @@ Pour l'installer, vous pouvez utiliser le manifeste suivant :
 
 ```terminal
 kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+```
+
+## Installation de k9s
+
+k9s est un outil en ligne de commande qui permet de gérer et de visualiser les ressources Kubernetes.  
+Vous pouvez l'installer en téléchargeant la dernière version depuis la page GitHub du projet.
+
+Téléchargement de la dernière version de k9s :
+
+```terminal
+K9S_VERSION=$(curl -s https://api.github.com/repos/derailed/k9s/releases/latest | jq -r .tag_name)
+K9S_ARCH=amd64
+if [ "$(uname -m)" = "aarch64" ]; then K9S_ARCH=arm64; fi
+(cd /tmp && curl -L --fail --remote-name-all https://github.com/derailed/k9s/releases/download/${K9S_VERSION}/k9s_Linux_${K9S_ARCH}.tar.gz) && \
+(cd /tmp && curl -L --fail --remote-name-all https://github.com/derailed/k9s/releases/download/${K9S_VERSION}/checksums.sha256) && \
+(cd /tmp && sha256sum --check checksums.sha256 --ignore-missing) && \
+sudo tar -C /usr/local/bin -xzf /tmp/k9s_Linux_${K9S_ARCH}.tar.gz && \
+rm /tmp/k9s_Linux_${K9S_ARCH}.tar.gz /tmp/checksums.sha256 && \
+k9s version
 ```
 
 ## Ajout de nœuds supplémentaires
@@ -435,3 +467,10 @@ Vous pouvez aussi réinitialiser le nœud en exécutant la commande suivante, ce
 ```terminal
 sudo kubeadm reset
 ```
+
+Si le test de connectivité de `cilium` échoue et laisse des objets sur le cluster, vous pouvez les supprimer en exécutant la commande suivante :
+
+```terminal
+kubectl delete namespace $(kubectl get namespaces -o json | jq -r '.items[] | select(.metadata.name | startswith("cilium-test")) | .metadata.name')
+```
+
