@@ -19,7 +19,7 @@ J'essaierai de le garder à jour avec les dernières versions de Kubernetes et D
 
 Voici les prérequis attendus pour ce guide :
 
-* Un serveur Debian "Trixie" 13 (13.0.0 au moment de l'écriture)
+* Un serveur Debian "Trixie" 13 (13.2.0 au moment de l'écriture)
 * Une IP statique pour le nœud maître
 * Un utilisateur avec des privilèges sudo
 * Un accès à Internet
@@ -27,12 +27,11 @@ Voici les prérequis attendus pour ce guide :
 
 ## Configuration du système
 
-Il est nécessaire d'effectuer certaines actions avant de pouvoir commencer à installer Kubernetes.
+Avant de commencer l'installation de Kubernetes, effectuez quelques préparatifs.
 
-Premièrement, assurez-vous que votre système est à jour et que les paquets nécessaires sont installés :
+Mettez d'abord votre système à jour et installez les paquets requis.
 
-Vous n'avez besoin du paquet `jq` que pendant ce guide, vous pouvez le supprimer après l'installation de Kubernetes et
-la configuration du nœud unique.
+Le paquet `jq` n'est nécessaire que pour les étapes de ce guide, vous pouvez le désinstaller une fois l'installation et la configuration du nœud unique terminées.
 
 ```terminal
 sudo apt update
@@ -42,19 +41,19 @@ sudo apt install -y curl jq gnupg2
 (Optionnel) Pour certains éléments optionnels de ce guide, vous aurez besoin de `helm` :
 
 ```terminal
-curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-4
 chmod 700 get_helm.sh
 ./get_helm.sh
 ```
 
-Désactivation du swap, même si Kubernetes peut fonctionner avec le swap dans ses dernières versions, il est recommandé de le désactiver :
+Même si Kubernetes peut fonctionner avec le swap dans ses dernières versions[^1], il est recommandé de le désactiver :
 
 ```terminal
 sudo swapoff -a
 sudo sed -i '/ swap / s/^[^#]/#&/' /etc/fstab
 ```
 
-Activation du routage des paquets IPv4 :
+Activation du routage des paquets IPv4, permettant aux Pods de communiquer entre eux :
 
 ```terminal
 cat <<EOF | sudo tee /etc/sysctl.d/99-kubernetes-k8s.conf
@@ -64,7 +63,7 @@ EOF
 sudo sysctl --system
 ```
 
-Installation de `containerd` :
+Installation de `containerd` comme runtime de conteneurs (CRI), vous pouvez également utiliser `cri-o` si vous le souhaitez.
 
 ```terminal
 sudo apt update
@@ -218,7 +217,7 @@ Containerd et Coredns s'attendent à ce que le CNI soit installé dans `/usr/lib
 symbolique de `/opt/cni/bin` vers `/usr/lib/cni` :
 
 ```terminal
-ln -s /opt/cni/bin /usr/lib/cni
+sudo ln -s /opt/cni/bin /usr/lib/cni
 ```
 
 Validation de l'installation, cela peut prendre quelques minutes avant que tout soit prêt :
@@ -342,7 +341,8 @@ kubectl patch storageclass nfs-client -p '{"metadata": {"annotations":{"storagec
 Dans le but de simplifier la gestion des certificats, mais aussi pour le fonctionnement correct du metrics-server, il
 est intéressant d'installer kubelet-csr-approver.
 
-Pour ce faire, vous pouvez utiliser le helm chart suivant :
+Pour ce faire, vous pouvez utiliser le helm chart suivant, où vous devez remplacer la plage d'adresses IP par celle de votre
+réseau :
 
 ```terminal
 helm repo add kubelet-csr-approver https://postfinance.github.io/kubelet-csr-approver
@@ -366,7 +366,8 @@ Pour activer cette fonctionnalité, vous devez ajouter les paramètres suivants 
 kubelet sur chaque nœud :
 
 ```terminal
-echo "serverTLSBootstrap: true" | sudo tee -a /var/lib/kubelet/config.yaml && sudo systemctl restart kubelet
+echo "serverTLSBootstrap: true" | sudo tee -a /var/lib/kubelet/config.yaml
+sudo systemctl restart kubelet
 ```
 
 Cela va générer un CSR (Certificate Signing Request) pour chaque nœud, que `kubelet-csr-approver` va approuver
@@ -389,10 +390,31 @@ Pour l'installer, vous pouvez utiliser le manifeste suivant :
 kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
 ```
 
+Vérification de l'installation, cela peut prendre quelques minutes avant que tout soit prêt :
+
+```terminal
+kubectl get deployment metrics-server -n kube-system
+```
+
+Récupération de données depuis API metrics directement :
+
+```terminal
+kubectl get --raw "/apis/metrics.k8s.io/v1beta1/nodes" | jq . || kubectl get --raw "/apis/metrics.k8s.io/v1beta1/nodes"
+```
+
+Récupération des métriques depuis kubectl :
+
+```terminal
+kubectl top nodes
+kubectl top pods --all-namespaces
+```
+
 ## Installation de k9s
 
 k9s est un outil en ligne de commande qui permet de gérer et de visualiser les ressources Kubernetes.  
 Vous pouvez l'installer en téléchargeant la dernière version depuis la page GitHub du projet.
+
+Vous trouverez plus d'informations sur le projet à l'adresse suivante : [https://k9scli.io/](https://k9scli.io/)
 
 Téléchargement de la dernière version de k9s :
 
@@ -408,12 +430,18 @@ rm /tmp/k9s_Linux_${K9S_ARCH}.tar.gz /tmp/checksums.sha256 && \
 k9s version
 ```
 
-## Ajout de nœuds supplémentaires
-
-Si vous souhaitez ajouter d'autres nœuds à votre cluster, vous pouvez utiliser la commande `kubeadm join` :
+Puis lancez k9s :
 
 ```terminal
-sudo kubeadm join <noeud maitre>:6443 --token <token> --discovery-token-ca-cert-hash sha256:<hash>
+k9s
+```
+
+## Ajout de nœuds supplémentaires
+
+Si vous souhaitez ajouter d'autres nœuds à votre cluster, vous pouvez utiliser la commande `kubeadm join` sur le nœud à ajouter :
+
+```terminal
+sudo kubeadm join <ip nœud maître>:6443 --token <token> --discovery-token-ca-cert-hash sha256:<hash>
 ```
 
 Vous pouvez obtenir le token et le hash en exécutant la commande suivante sur le nœud maître :
@@ -422,7 +450,7 @@ Vous pouvez obtenir le token et le hash en exécutant la commande suivante sur l
 sudo kubeadm token create --print-join-command
 ```
 
-(optionnel) Remise en place du `taint` sur le nœud maître :
+(optionnel) Remise en place du `taint` sur le nœud maître, si vous ne souhaitez pas exécuter de Pods sur le nœud maître :
 
 ```terminal
 sudo kubectl taint nodes $HOSTNAME node-role.kubernetes.io/control-plane:NoSchedule
@@ -452,6 +480,7 @@ Puis modifiez les droits :
 
 ```terminal
 sudo chown $(id -u):$(id -g) $HOME/.kube/config
+sudo chmod 600 $HOME/.kube/config
 ```
 
 # Debugging
@@ -468,9 +497,10 @@ Vous pouvez aussi réinitialiser le nœud en exécutant la commande suivante, ce
 sudo kubeadm reset
 ```
 
-Si le test de connectivité de `cilium` échoue et laisse des objets sur le cluster, vous pouvez les supprimer en exécutant la commande suivante :
+Si le test de connectivité de `cilium` échoue et laisse des objets sur le cluster, vous pouvez les supprimer en exécutant la commande suivante, vous aurez besoin d'installer `jq` pour exécuter cette commande :
 
 ```terminal
 kubectl delete namespace $(kubectl get namespaces -o json | jq -r '.items[] | select(.metadata.name | startswith("cilium-test")) | .metadata.name')
 ```
 
+[^1]: https://kubernetes.io/docs/concepts/cluster-administration/swap-memory-management/#swap-and-control-plane-nodes
