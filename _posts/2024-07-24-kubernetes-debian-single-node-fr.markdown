@@ -2,9 +2,9 @@
 title: "Kubernetes sur un unique noeud Debian"
 author: myst
 date: 2024-07-24 22:15:00 +0200
-last_modified_at: 2025-06-25 17:30:00 +0200
+last_modified_at: 2026-07-06 13:30:00 +0200
 categories: [ kubernetes ]
-tags: [ kubernetes, debian, single-node, cluster, nfs, cilium, calico, metrics-server, kubelet-csr-approver ]
+tags: [ kubernetes, debian, single-node, cluster, nfs, cilium, metrics-server, kubelet-csr-approver ]
 lang: fr
 ---
 
@@ -19,7 +19,7 @@ J'essaierai de le garder à jour avec les dernières versions de Kubernetes et D
 
 Voici les prérequis attendus pour ce guide :
 
-* Un serveur Debian "Trixie" 13 (13.2.0 au moment de l'écriture)
+* Un serveur Debian "Trixie" 13 (13.5.0 au moment de l'écriture)
 * Une IP statique pour le nœud maître
 * Un utilisateur avec des privilèges sudo
 * Un accès à Internet
@@ -31,14 +31,14 @@ Avant de commencer l'installation de Kubernetes, effectuez quelques préparatifs
 
 Mettez d'abord votre système à jour et installez les paquets requis.
 
-Le paquet `jq` n'est nécessaire que pour les étapes de ce guide, vous pouvez le désinstaller une fois l'installation et la configuration du nœud unique terminées.
+Le paquet `jq` n'est utile que pour les étapes de ce guide ; vous pourrez le désinstaller une fois l'installation et la configuration du nœud unique terminées.
 
 ```terminal
 sudo apt update
 sudo apt install -y curl jq gnupg2
 ```
 
-(Optionnel) Pour certains éléments optionnels de ce guide, vous aurez besoin de `helm` :
+(Optionnel) Certaines parties de ce guide nécessitent `helm` :
 
 ```terminal
 curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-4
@@ -63,7 +63,7 @@ EOF
 sudo sysctl --system
 ```
 
-Installation de `containerd` comme runtime de conteneurs (CRI), vous pouvez également utiliser `cri-o` si vous le souhaitez.
+Installation de `containerd` en tant que runtime de conteneurs (CRI) ; vous pouvez également opter pour `cri-o` si vous le préférez.
 
 ```terminal
 sudo apt update
@@ -77,7 +77,7 @@ sudo mkdir -p /etc/containerd
 containerd config default | sudo tee /etc/containerd/config.toml
 ```
 
-Remplacement de la valeur de `SystemdCgroup` de `false` à `true` dans la
+Passez la valeur de `SystemdCgroup` de `false` à `true` dans la
 section `plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options`.  
 Cela permet à `containerd` de fonctionner correctement avec `systemd` :
 
@@ -96,22 +96,22 @@ sudo systemctl restart containerd
 
 Il est temps d'installer Kubernetes.
 
-Ajoutez la clé GPG de Kubernetes, vous pouvez remplacer `v1.34` par la version de Kubernetes que vous souhaitez
+Ajoutez la clé GPG de Kubernetes ; vous pouvez remplacer `v1.36` par la version de Kubernetes que vous souhaitez
 installer :
 
 ```terminal
-curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.34/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.36/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
 ```
 
-Dans les versions avant Debian 12 et Ubuntu 22.04, vous devez créer le répertoire `/etc/apt/keyrings` avant d'exécuter
-la commande `curl` précédente.
+Sur les versions antérieures à Debian 12 et Ubuntu 22.04, vous devez créer le répertoire `/etc/apt/keyrings` avant
+d'exécuter la commande `curl` précédente.
 
-Ajoutez le dépôt Kubernetes, vous pouvez remplacer `v1.34` par la version de Kubernetes que vous souhaitez installer :
+Ajoutez le dépôt Kubernetes ; ici aussi, vous pouvez remplacer `v1.36` par la version de Kubernetes que vous souhaitez installer :
 
 ```terminal
 cat <<EOF | sudo tee /etc/apt/sources.list.d/kubernetes.sources
 Types: deb
-URIs: https://pkgs.k8s.io/core:/stable:/v1.34/deb/
+URIs: https://pkgs.k8s.io/core:/stable:/v1.36/deb/
 Suites: /
 Components:
 Signed-By: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
@@ -158,13 +158,13 @@ sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
 sudo chown $(id -u):$(id -g) $HOME/.kube/config
 ```
 
-Vous devez maintenant pouvoir interagir avec votre cluster Kubernetes sans utiliser `sudo` :
+Vous devriez désormais pouvoir interagir avec votre cluster Kubernetes sans utiliser `sudo` :
 
 ```terminal
 kubectl get nodes
 ```
 
-(optionnel) Si vous le souhaitez, vous pouvez activer l'autocomplétion pour `kubectl` et l'ajouter à votre
+(optionnel) Vous pouvez activer l'autocomplétion de `kubectl` et l'ajouter à votre
 fichier `.bashrc` :
 
 ```terminal
@@ -180,9 +180,9 @@ Cette action ne doit être effectuée qu'une seule fois, après l'initialisation
 
 ### Utilisation de cilium
 
-L'installation de cilium nécessite d'avoir `cilium` sur votre machine.
+L'installation de cilium sur le cluster requiert la présence de la CLI `cilium` sur votre machine.
 
-Téléchargement de la dernière version de `cilium` :
+Téléchargement de la dernière version de la CLI `cilium` :
 
 ```terminal
 CILIUM_CLI_VERSION=$(curl -s https://raw.githubusercontent.com/cilium/cilium-cli/main/stable.txt)
@@ -207,52 +207,39 @@ Installation de `cilium` sur le cluster avec la dernière version disponible :
 cilium install
 ```
 
-Il est possible de spécifier une version spécifique de `cilium` lors de l'installation :
+Il est possible d'imposer une version précise de `cilium` lors de l'installation :
 
 ```terminal
 cilium install --version v1.16.1
 ```
 
-Containerd et Coredns s'attendent à ce que le CNI soit installé dans `/usr/lib/cni`, nous devons donc créer un lien
+Containerd et Coredns s'attendent à ce que le CNI soit installé dans `/usr/lib/cni` ; nous devons donc créer un lien
 symbolique de `/opt/cni/bin` vers `/usr/lib/cni` :
 
 ```terminal
 sudo ln -s /opt/cni/bin /usr/lib/cni
 ```
 
-Validation de l'installation, cela peut prendre quelques minutes avant que tout soit prêt :
+Validation de l'installation ; cela peut prendre quelques minutes avant que tout soit prêt :
 
 ```terminal
 cilium status --wait
 ```
 
-Test de connectivité, à faire après que vous avez configuré le cluster en tant que nœud unique ou si vous avez ajouté des
+Test de connectivité, **à effectuer une fois le cluster configuré en nœud unique**, ou après l'ajout de nouveaux
 nœuds :
 
 ```terminal
 cilium connectivity test
 ```
 
-### Utilisation de calico
-
-Vous pouvez également utiliser calico comme réseau pour votre cluster Kubernetes à la place de cilium.
-
-Il suffit d'appliquer le manifeste suivant, qui installe la version 3.29.2 de calico :
-
-```terminal
-kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.29.2/manifests/calico.yaml
-```
-
-Vous pouvez trouver la dernière version disponible, vous pouvez consulter la page
-suivante : [https://github.com/projectcalico/calico/releases/latest](https://github.com/projectcalico/calico/releases/latest)
-
 ## Configuration en tant que nœud unique
 
-Jusqu'à présent, tout ce qui a été fait n'était pas spécifique pour un nœud unique. Cependant, il y a quelques
-ajustements à faire pour que Kubernetes fonctionne correctement sur un seul nœud.
+Jusqu'à présent, rien de ce qui a été fait n'était spécifique à un nœud unique. Quelques
+ajustements restent toutefois nécessaires pour que Kubernetes fonctionne correctement sur un seul nœud.
 
-Sans les autres nœuds, il est impossible d'exécuter quoi que ce soit dans le cluster car Kubernetes applique un `taint`
-sur le nœud maître pour qu'aucun Pod ne puisse y être planifié. Pour contourner cela, vous pouvez supprimer le `taint` :
+En l'absence d'autres nœuds, il est impossible d'exécuter quoi que ce soit dans le cluster, car Kubernetes applique un `taint`
+sur le nœud maître afin d'empêcher tout Pod d'y être planifié. Pour contourner cela, vous pouvez supprimer ce `taint` :
 
 Affichez les `taints` de votre unique nœud :
 
@@ -297,16 +284,16 @@ Si vous avez installé `cilium`, vous pouvez maintenant vérifier le bon fonctio
 
 ## Ajout d'un StorageClass NFS
 
-Pour plus de simplicité, j'utilise un fournisseur de stockage NFS pour mes déploiements, qui s'occupe de tout stocker
-dans un sous-dossier d'un partage NFS.
+Pour plus de simplicité, j'utilise pour mes déploiements un fournisseur de stockage NFS, qui range automatiquement
+les données dans un sous-dossier d'un partage NFS.
 
 Vous pouvez trouver plus d'informations sur le GitHub du
 projet [nfs-subdir-external-provisioner](https://github.com/kubernetes-sigs/nfs-subdir-external-provisioner).
 
 L'approche la plus pratique est d'utiliser Helm pour installer le fournisseur NFS.
 
-Vous devez dans un premier temps installer le client NFS, cette étape doit être effectuée sur tous les nœuds existants
-et futurs, n'oubliez pas d'autoriser ces nœuds à accéder au serveur NFS :
+Vous devez d'abord installer le client NFS. Cette étape est à effectuer sur tous les nœuds, existants comme futurs ;
+n'oubliez pas non plus d'autoriser ces nœuds à accéder au serveur NFS :
 
 ```
 sudo apt update
@@ -338,10 +325,10 @@ kubectl patch storageclass nfs-client -p '{"metadata": {"annotations":{"storagec
 
 ## Installation de kubelet-csr-approver
 
-Dans le but de simplifier la gestion des certificats, mais aussi pour le fonctionnement correct du metrics-server, il
-est intéressant d'installer kubelet-csr-approver.
+Pour simplifier la gestion des certificats, mais aussi pour assurer le bon fonctionnement du metrics-server, il
+est judicieux d'installer kubelet-csr-approver.
 
-Pour ce faire, vous pouvez utiliser le helm chart suivant, où vous devez remplacer la plage d'adresses IP par celle de votre
+Pour ce faire, vous pouvez utiliser le helm chart suivant, en remplaçant la plage d'adresses IP par celle de votre
 réseau :
 
 ```terminal
@@ -352,14 +339,14 @@ helm install kubelet-csr-approver kubelet-csr-approver/kubelet-csr-approver -n k
 ```
 
 Le paramètre `providerIpPrefixes` permet de spécifier les plages d'adresses IP autorisées à approuver les certificats.
-Le second paramètre `bypassDnsResolution`, défini à `true`, permet de ne pas résoudre les noms de domaine.
+Le second paramètre, `bypassDnsResolution`, défini à `true`, permet de ne pas résoudre les noms de domaine.
 
-Vous avez la possibilité de spécifier d'autres paramètres, vous pouvez consulter la documentation du projet à l'adresse
+D'autres paramètres peuvent être spécifiés ; pour les découvrir, consultez la documentation du projet à l'adresse
 suivante : [https://github.com/postfinance/kubelet-csr-approver?tab=readme-ov-file#parameters](https://github.com/postfinance/kubelet-csr-approver?tab=readme-ov-file#parameters)
 
 ## Activation du serverTLSBootstrap
 
-Le serverTLSBootstrap est une fonctionnalité permettant aux nœuds de générer leurs propres certificats pour communiquer
+Le serverTLSBootstrap est une fonctionnalité qui permet aux nœuds de générer leurs propres certificats pour communiquer
 avec le cluster.
 
 Pour activer cette fonctionnalité, vous devez ajouter les paramètres suivants dans le fichier de configuration de
@@ -381,8 +368,8 @@ kubectl get csr
 
 ## Installation de metrics-server
 
-Le metrics-server est un composant qui collecte les métriques de l'ensemble du cluster Kubernetes. Il est nécessaire
-pour que les HPA (Horizontal Pod Autoscaler) ou la commande `kubectl top` fonctionnent.
+Le metrics-server est un composant qui collecte les métriques de l'ensemble du cluster Kubernetes. Il est indispensable
+au fonctionnement des HPA (Horizontal Pod Autoscaler) et de la commande `kubectl top`.
 
 Pour l'installer, vous pouvez utiliser le manifeste suivant :
 
@@ -390,13 +377,13 @@ Pour l'installer, vous pouvez utiliser le manifeste suivant :
 kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
 ```
 
-Vérification de l'installation, cela peut prendre quelques minutes avant que tout soit prêt :
+Vérification de l'installation ; cela peut prendre quelques minutes avant que tout soit prêt :
 
 ```terminal
 kubectl get deployment metrics-server -n kube-system
 ```
 
-Récupération de données depuis API metrics directement :
+Récupération des données directement depuis l'API metrics :
 
 ```terminal
 kubectl get --raw "/apis/metrics.k8s.io/v1beta1/nodes" | jq . || kubectl get --raw "/apis/metrics.k8s.io/v1beta1/nodes"
@@ -491,13 +478,13 @@ Si vous rencontrez des problèmes lors de l'installation ou de l'utilisation de 
 sudo journalctl -xeu kubelet
 ```
 
-Vous pouvez aussi réinitialiser le nœud en exécutant la commande suivante, ce qui aura pour effet de remettre le nœud dans son état initial :
+Vous pouvez aussi réinitialiser le nœud avec la commande suivante, qui le remet dans son état initial :
 
 ```terminal
 sudo kubeadm reset
 ```
 
-Si le test de connectivité de `cilium` échoue et laisse des objets sur le cluster, vous pouvez les supprimer en exécutant la commande suivante, vous aurez besoin d'installer `jq` pour exécuter cette commande :
+Si le test de connectivité de `cilium` échoue et laisse des objets sur le cluster, vous pouvez les supprimer avec la commande suivante (qui requiert `jq`) :
 
 ```terminal
 kubectl delete namespace $(kubectl get namespaces -o json | jq -r '.items[] | select(.metadata.name | startswith("cilium-test")) | .metadata.name')
